@@ -1,0 +1,21 @@
+namespace FxSandbox.Services;
+
+public sealed class RateSimulatorService(TradingEngine engine) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            foreach (var pair in TradingEngine.SupportedPairs)
+            {
+                var current = engine.GetRate(pair);
+                // Random walk: Δ ∈ [-0.001, +0.001]
+                var delta = Random.Shared.NextDouble() * 0.002 - 0.001;
+                var newRate = current * (decimal)(1.0 + delta);
+                engine.UpdateRate(pair, Math.Round(newRate, 6));
+            }
+
+            await Task.Delay(500, ct);
+        }
+    }
+}

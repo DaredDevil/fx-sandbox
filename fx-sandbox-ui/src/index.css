@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-950 text-gray-100 font-mono;
+  }
+}
+
+/* Rate flash animations */
+@keyframes flash-green {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(74, 222, 128, 0.15); }
+}
+@keyframes flash-red {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(248, 113, 113, 0.15); }
+}
+.flash-green { animation: flash-green 0.4s ease-in-out; }
+.flash-red   { animation: flash-red 0.4s ease-in-out; }
