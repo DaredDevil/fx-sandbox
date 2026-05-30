@@ -1,7 +1,11 @@
+using System.Text.Json.Serialization;
 using FxSandbox.Features.Orders;
 using FxSandbox.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.ConfigureHttpJsonOptions(opts =>
+    opts.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.AddSingleton<TradingEngine>();
 builder.Services.AddHostedService<RateSimulatorService>();
