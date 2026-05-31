@@ -1,6 +1,8 @@
 import type { Account, LimitOrder, PlaceOrderPayload, Position, Rate } from './types';
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
+// Empty string = relative URLs (works when API and UI share the same origin in production).
+// Set VITE_API_URL=http://localhost:5000 in .env.local for local dev against a separate API process.
+const BASE = import.meta.env.VITE_API_URL ?? '';
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
