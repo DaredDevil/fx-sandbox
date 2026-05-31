@@ -58,6 +58,17 @@ public sealed class TradingEngine
         lock (_lock) { return [.._orders]; }
     }
 
+    public bool CancelOrder(Guid id)
+    {
+        lock (_lock)
+        {
+            var order = _orders.FirstOrDefault(o => o.Id == id);
+            if (order is null || order.Status != OrderStatus.Pending) return false;
+            order.Status = OrderStatus.Cancelled;
+            return true;
+        }
+    }
+
     // ── Order matching ─────────────────────────────────────────────────────
 
     public bool TryFillOrder(LimitOrder order, decimal fillRate)

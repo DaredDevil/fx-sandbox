@@ -10,7 +10,7 @@ export interface LimitOrder {
   side: 'Buy' | 'Sell';
   limitPrice: number;
   quantity: number;
-  status: 'Pending' | 'Filled';
+  status: 'Pending' | 'Filled' | 'Cancelled';
   createdAt: string;
   filledAt: string | null;
 }

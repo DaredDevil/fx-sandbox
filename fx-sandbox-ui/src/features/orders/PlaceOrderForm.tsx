@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod/v4';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 
 const PAIRS = ['USD/EUR', 'USD/GBP', 'USD/CHF'] as const;
@@ -23,6 +23,15 @@ export function PlaceOrderForm() {
   });
 
   const side = watch('side');
+  const pair = watch('pair');
+
+  const { data: rates } = useQuery({
+    queryKey: ['rates'],
+    queryFn: api.getRates,
+    refetchInterval: 1000,
+  });
+
+  const marketRate = rates?.find(r => r.pair === pair)?.value;
 
   const mutation = useMutation({
     mutationFn: api.placeOrder,
@@ -72,6 +81,21 @@ export function PlaceOrderForm() {
             ))}
           </div>
         </div>
+
+        {/* Market rate hint */}
+        {marketRate !== undefined && (
+          <div className="flex items-center justify-between bg-gray-800/60 border border-gray-700/50 rounded px-3 py-1.5 text-xs">
+            <span className="text-gray-500">MARKET</span>
+            <button
+              type="button"
+              className="tabular-nums text-cyan-400 font-bold hover:text-cyan-300 transition-colors"
+              onClick={() => setValue('limitPrice', parseFloat(marketRate.toFixed(4)), { shouldValidate: true })}
+              title="Click to use market rate as limit price"
+            >
+              {marketRate.toFixed(4)}
+            </button>
+          </div>
+        )}
 
         {/* Limit price */}
         <div>

@@ -1,12 +1,19 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import type { LimitOrder } from '../../api/types';
 
 export function OrderBook() {
+  const queryClient = useQueryClient();
+
   const { data: orders, isError } = useQuery({
     queryKey: ['orders'],
     queryFn: api.getOrders,
     refetchInterval: 2000,
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: api.cancelOrder,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['orders'] }),
   });
 
   return (
@@ -39,6 +46,7 @@ export function OrderBook() {
                 <th className="text-right pb-2 font-medium">PRICE</th>
                 <th className="text-right pb-2 font-medium">QTY</th>
                 <th className="text-right pb-2 font-medium">STATUS</th>
+                <th className="pb-2" />
               </tr>
             </thead>
             <tbody>
@@ -58,10 +66,25 @@ export function OrderBook() {
                     <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                       order.status === 'Filled'
                         ? 'bg-green-900/40 text-green-400'
+                        : order.status === 'Cancelled'
+                        ? 'bg-gray-700/60 text-gray-500'
                         : 'bg-yellow-900/40 text-yellow-400'
                     }`}>
                       {order.status.toUpperCase()}
                     </span>
+                  </td>
+                  <td className="py-2 pl-2 text-right">
+                    {order.status === 'Pending' && (
+                      <button
+                        onClick={() => cancelMutation.mutate(order.id)}
+                        disabled={cancelMutation.isPending}
+                        className="text-gray-600 hover:text-red-400 transition-colors text-xs px-1"
+                        title="Cancel order"
+                        aria-label="Cancel order"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

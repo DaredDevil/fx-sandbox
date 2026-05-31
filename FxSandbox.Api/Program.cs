@@ -11,13 +11,23 @@ builder.Services.AddSingleton<TradingEngine>();
 builder.Services.AddHostedService<RateSimulatorService>();
 builder.Services.AddHostedService<OrderMatchingService>();
 
+var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',')
+    ?? ["http://localhost:5173"];
+
 builder.Services.AddCors(opts => opts.AddDefaultPolicy(policy =>
-    policy.WithOrigins("http://localhost:5173")
+    policy.WithOrigins(allowedOrigins)
           .AllowAnyMethod()
           .AllowAnyHeader()));
 
 var app = builder.Build();
 app.UseCors();
+
+// Serve React static files when wwwroot is present (production/Docker)
+if (Directory.Exists(Path.Combine(app.Environment.ContentRootPath, "wwwroot")))
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
 
 // ── Rates ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +57,9 @@ app.MapPost("/api/orders", (PlaceOrderRequest request, TradingEngine engine) =>
     return Results.Created($"/api/orders/{order.Id}", order);
 });
 
+app.MapDelete("/api/orders/{id:guid}", (Guid id, TradingEngine engine) =>
+    engine.CancelOrder(id) ? Results.NoContent() : Results.NotFound());
+
 // ── Positions ──────────────────────────────────────────────────────────────
 
 app.MapGet("/api/positions", (TradingEngine engine) =>
@@ -56,6 +69,10 @@ app.MapGet("/api/positions", (TradingEngine engine) =>
 
 app.MapGet("/api/account", (TradingEngine engine) =>
     Results.Ok(new { balance = engine.GetBalance(), currency = "USD" }));
+
+// SPA fallback: serve index.html for any non-API route so React router works
+if (Directory.Exists(Path.Combine(app.Environment.ContentRootPath, "wwwroot")))
+    app.MapFallbackToFile("index.html");
 
 app.Run();
 

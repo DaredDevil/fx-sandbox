@@ -1,7 +1,6 @@
 import type { Account, LimitOrder, PlaceOrderPayload, Position, Rate } from './types';
 
-const BASE = (import.meta as Record<string, unknown> & { env: Record<string, string> }).env
-  .VITE_API_URL ?? 'http://localhost:5000';
+const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
@@ -22,10 +21,16 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function del(path: string): Promise<void> {
+  const res = await fetch(`${BASE}${path}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) throw new Error(`DELETE ${path} failed: ${res.status}`);
+}
+
 export const api = {
   getRates: () => get<Rate[]>('/api/rates'),
   getOrders: () => get<LimitOrder[]>('/api/orders'),
   getPositions: () => get<Position[]>('/api/positions'),
   getAccount: () => get<Account>('/api/account'),
   placeOrder: (payload: PlaceOrderPayload) => post<LimitOrder>('/api/orders', payload),
+  cancelOrder: (id: string) => del(`/api/orders/${id}`),
 };
