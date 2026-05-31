@@ -80,6 +80,11 @@ public sealed class TradingEngine
             order.Status = OrderStatus.Filled;
             order.FilledAt = DateTime.UtcNow;
 
+            if (order.Side == OrderSide.Buy)
+                _balance -= order.Quantity;
+            else
+                _balance += order.Quantity;
+
             var key = $"{order.Pair}:{order.Side}";
 
             if (_positions.TryGetValue(key, out var existing))

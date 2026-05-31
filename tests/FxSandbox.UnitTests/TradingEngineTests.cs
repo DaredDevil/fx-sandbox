@@ -253,4 +253,39 @@ public sealed class TradingEngineTests
         var engine = CreateEngine();
         engine.GetBalance().Should().Be(10_000m);
     }
+
+    [Fact]
+    public void TryFillOrder_BuyOrder_DeductsQuantityFromBalance()
+    {
+        var engine = CreateEngine();
+        var order = engine.PlaceOrder(new("USD/EUR", OrderSide.Buy, 0.90m, 1000m));
+
+        engine.TryFillOrder(order, 0.90m);
+
+        engine.GetBalance().Should().Be(9_000m);
+    }
+
+    [Fact]
+    public void TryFillOrder_SellOrder_AddsQuantityToBalance()
+    {
+        var engine = CreateEngine();
+        var order = engine.PlaceOrder(new("USD/EUR", OrderSide.Sell, 0.92m, 500m));
+
+        engine.TryFillOrder(order, 0.92m);
+
+        engine.GetBalance().Should().Be(10_500m);
+    }
+
+    [Fact]
+    public void TryFillOrder_FailedFill_DoesNotChangeBalance()
+    {
+        var engine = CreateEngine();
+        var order = engine.PlaceOrder(new("USD/EUR", OrderSide.Buy, 0.90m, 1000m));
+        engine.TryFillOrder(order, 0.90m); // fills once
+
+        var balanceAfterFirstFill = engine.GetBalance();
+        engine.TryFillOrder(order, 0.89m); // already filled — should be no-op
+
+        engine.GetBalance().Should().Be(balanceAfterFirstFill);
+    }
 }
