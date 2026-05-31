@@ -1,5 +1,5 @@
 name: deploy
-railway on:
+on:
   push:
     branches: [main]
 permissions:
