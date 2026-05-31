@@ -15,6 +15,9 @@ public sealed class OrderMatchingIntegrationTests
     // The matching service ticks every 500 ms; allow two full ticks as buffer.
     private static readonly TimeSpan TickBuffer = TimeSpan.FromMilliseconds(1200);
 
+    private static LimitOrder Place(TradingEngine engine, PlaceOrderRequest req)
+        => engine.PlaceOrder(req).Order!;
+
     private static async Task<OrderMatchingService> StartMatchingAsync(TradingEngine engine, CancellationToken ct)
     {
         var svc = new OrderMatchingService(engine);
@@ -27,7 +30,7 @@ public sealed class OrderMatchingIntegrationTests
     {
         var engine = new TradingEngine();
         engine.UpdateRate("USD/EUR", 0.9200m);
-        var order = engine.PlaceOrder(new PlaceOrderRequest("USD/EUR", OrderSide.Buy, 0.9200m, 500m));
+        var order = Place(engine, new PlaceOrderRequest("USD/EUR", OrderSide.Buy, 0.9200m, 500m));
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var svc = await StartMatchingAsync(engine, cts.Token);
@@ -43,14 +46,19 @@ public sealed class OrderMatchingIntegrationTests
     {
         var engine = new TradingEngine();
         engine.UpdateRate("USD/GBP", 0.7890m);
-        var order = engine.PlaceOrder(new PlaceOrderRequest("USD/GBP", OrderSide.Sell, 0.7890m, 300m));
+
+        // Must have a BUY position before placing a SELL
+        var buyOrder = Place(engine, new PlaceOrderRequest("USD/GBP", OrderSide.Buy, 0.7890m, 300m));
+        engine.TryFillOrder(buyOrder, 0.7890m);
+
+        var sellOrder = Place(engine, new PlaceOrderRequest("USD/GBP", OrderSide.Sell, 0.7890m, 300m));
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var svc = await StartMatchingAsync(engine, cts.Token);
 
         await Task.Delay(TickBuffer, CancellationToken.None);
 
-        order.Status.Should().Be(OrderStatus.Filled);
+        sellOrder.Status.Should().Be(OrderStatus.Filled);
         await svc.StopAsync(CancellationToken.None);
     }
 
@@ -59,7 +67,7 @@ public sealed class OrderMatchingIntegrationTests
     {
         var engine = new TradingEngine();
         engine.UpdateRate("USD/CHF", 0.8990m);
-        var order = engine.PlaceOrder(new PlaceOrderRequest("USD/CHF", OrderSide.Buy, 0.8990m, 100m));
+        var order = Place(engine, new PlaceOrderRequest("USD/CHF", OrderSide.Buy, 0.8990m, 100m));
         engine.CancelOrder(order.Id);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -76,7 +84,7 @@ public sealed class OrderMatchingIntegrationTests
     {
         var engine = new TradingEngine();
         engine.UpdateRate("USD/EUR", 0.9500m);
-        var order = engine.PlaceOrder(new PlaceOrderRequest("USD/EUR", OrderSide.Buy, 0.9000m, 100m));
+        var order = Place(engine, new PlaceOrderRequest("USD/EUR", OrderSide.Buy, 0.9000m, 100m));
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var svc = await StartMatchingAsync(engine, cts.Token);
@@ -92,10 +100,10 @@ public sealed class OrderMatchingIntegrationTests
     {
         var engine = new TradingEngine();
 
-        var o1 = engine.PlaceOrder(new PlaceOrderRequest("USD/EUR", OrderSide.Buy, 0.9100m, 1000m));
+        var o1 = Place(engine, new PlaceOrderRequest("USD/EUR", OrderSide.Buy, 0.9100m, 1000m));
         engine.TryFillOrder(o1, 0.9100m);
 
-        var o2 = engine.PlaceOrder(new PlaceOrderRequest("USD/EUR", OrderSide.Buy, 0.9300m, 1000m));
+        var o2 = Place(engine, new PlaceOrderRequest("USD/EUR", OrderSide.Buy, 0.9300m, 1000m));
         engine.TryFillOrder(o2, 0.9300m);
 
         var position = engine.GetPositions().Single(p => p.Pair == "USD/EUR" && p.Side == "Buy");

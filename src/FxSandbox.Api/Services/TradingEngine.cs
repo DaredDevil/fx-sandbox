@@ -16,6 +16,11 @@ public sealed class TradingEngine
 
     private readonly List<LimitOrder> _orders = [];
     private readonly Dictionary<string, Position> _positions = [];
+
+    // Tracks how many units of each pair are already reserved by pending SELL orders,
+    // preventing a user from committing the same holdings to multiple sells.
+    private readonly Dictionary<string, decimal> _pendingSellQty = [];
+
     private decimal _balance = 10_000m;
 
     public static readonly IReadOnlyList<string> SupportedPairs =
@@ -40,17 +45,45 @@ public sealed class TradingEngine
 
     // ── Orders ─────────────────────────────────────────────────────────────
 
-    public LimitOrder PlaceOrder(PlaceOrderRequest req)
+    public PlaceOrderResult PlaceOrder(PlaceOrderRequest req)
     {
-        var order = new LimitOrder
+        lock (_lock)
         {
-            Pair = req.Pair,
-            Side = req.Side,
-            LimitPrice = req.LimitPrice,
-            Quantity = req.Quantity,
-        };
-        lock (_lock) { _orders.Add(order); }
-        return order;
+            // All checks and mutations are inside the same lock acquisition so
+            // concurrent callers cannot race past zero on either constraint.
+
+            if (req.Side == OrderSide.Buy)
+            {
+                if (_balance < req.Quantity)
+                    return PlaceOrderResult.Fail("Insufficient balance");
+
+                _balance -= req.Quantity;
+            }
+            else
+            {
+                // SELL: you can only sell what you currently hold minus any quantity
+                // already reserved by other pending sell orders for the same pair.
+                var buyQty = _positions.TryGetValue($"{req.Pair}:Buy", out var pos) ? pos.Quantity : 0m;
+                var reserved = _pendingSellQty.GetValueOrDefault(req.Pair);
+                var available = buyQty - reserved;
+
+                if (available < req.Quantity)
+                    return PlaceOrderResult.Fail("Insufficient position to sell");
+
+                _pendingSellQty[req.Pair] = reserved + req.Quantity;
+            }
+
+            var order = new LimitOrder
+            {
+                Pair = req.Pair,
+                Side = req.Side,
+                LimitPrice = req.LimitPrice,
+                Quantity = req.Quantity,
+            };
+
+            _orders.Add(order);
+            return PlaceOrderResult.Success(order);
+        }
     }
 
     public IReadOnlyList<LimitOrder> GetOrders()
@@ -64,7 +97,15 @@ public sealed class TradingEngine
         {
             var order = _orders.FirstOrDefault(o => o.Id == id);
             if (order is null || order.Status != OrderStatus.Pending) return false;
+
             order.Status = OrderStatus.Cancelled;
+
+            if (order.Side == OrderSide.Buy)
+                _balance += order.Quantity;
+            else
+                _pendingSellQty[order.Pair] = Math.Max(0m,
+                    _pendingSellQty.GetValueOrDefault(order.Pair) - order.Quantity);
+
             return true;
         }
     }
@@ -80,10 +121,14 @@ public sealed class TradingEngine
             order.Status = OrderStatus.Filled;
             order.FilledAt = DateTime.UtcNow;
 
-            if (order.Side == OrderSide.Buy)
-                _balance -= order.Quantity;
-            else
+            if (order.Side == OrderSide.Sell)
+            {
+                // Release the sell reservation and credit USD proceeds.
+                _pendingSellQty[order.Pair] = Math.Max(0m,
+                    _pendingSellQty.GetValueOrDefault(order.Pair) - order.Quantity);
                 _balance += order.Quantity;
+            }
+            // BUY: funds were reserved at placement — no further balance change.
 
             var key = $"{order.Pair}:{order.Side}";
 
@@ -132,6 +177,16 @@ public sealed class TradingEngine
     // ── Account ────────────────────────────────────────────────────────────
 
     public decimal GetBalance() { lock (_lock) { return _balance; } }
+}
+
+public sealed record PlaceOrderResult
+{
+    public LimitOrder? Order { get; init; }
+    public string? Error { get; init; }
+    public bool IsSuccess => Order is not null;
+
+    public static PlaceOrderResult Success(LimitOrder order) => new() { Order = order };
+    public static PlaceOrderResult Fail(string error) => new() { Error = error };
 }
 
 public sealed record PositionDto(

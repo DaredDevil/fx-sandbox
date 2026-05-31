@@ -52,7 +52,7 @@ public sealed class TradingScenarioTests : IAsyncDisposable
     [Fact]
     public async Task Scenario_CancelPendingOrder_ShowsAsCancelledInBook()
     {
-        var payload = new { pair = "USD/GBP", side = "Sell", limitPrice = 0.8500m, quantity = 250m };
+        var payload = new { pair = "USD/GBP", side = "Buy", limitPrice = 0.7500m, quantity = 250m };
         var postResp = await _client.PostAsJsonAsync("/api/orders", payload);
         var created = await postResp.Content.ReadAsStringAsync();
         using var createdDoc = JsonDocument.Parse(created);
@@ -141,6 +141,16 @@ public sealed class TradingScenarioTests : IAsyncDisposable
             .ToList();
 
         pairs.Should().BeEquivalentTo(["USD/EUR", "USD/GBP", "USD/CHF"]);
+    }
+
+    // ── Scenario: order exceeding balance is rejected ─────────────────────────
+
+    [Fact]
+    public async Task Scenario_OrderExceedingBalance_Returns422()
+    {
+        var payload = new { pair = "USD/EUR", side = "Buy", limitPrice = 0.92m, quantity = 99_999m };
+        var resp = await _client.PostAsJsonAsync("/api/orders", payload);
+        resp.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
     // ── Scenario: rejected order with bad pair returns validation error ────────

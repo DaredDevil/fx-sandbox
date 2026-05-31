@@ -53,8 +53,10 @@ app.MapPost("/api/orders", (PlaceOrderRequest request, TradingEngine engine) =>
     if (!validation.IsValid)
         return Results.ValidationProblem(validation.ToDictionary());
 
-    var order = engine.PlaceOrder(request);
-    return Results.Created($"/api/orders/{order.Id}", order);
+    var result = engine.PlaceOrder(request);
+    return result.IsSuccess
+        ? Results.Created($"/api/orders/{result.Order!.Id}", result.Order)
+        : Results.UnprocessableEntity(new { error = result.Error });
 });
 
 app.MapDelete("/api/orders/{id:guid}", (Guid id, TradingEngine engine) =>

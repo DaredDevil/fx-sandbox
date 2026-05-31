@@ -7,10 +7,20 @@ using Xunit;
 
 namespace FxSandbox.ApiTests;
 
-public sealed class ApiIntegrationTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+// xUnit creates one instance per [Fact], so each test gets a fresh factory
+// and a clean TradingEngine. Tests cannot bleed state into each other.
+public sealed class ApiIntegrationTests : IAsyncDisposable
 {
-    private readonly HttpClient _client = factory.CreateClient();
+    private readonly WebApplicationFactory<Program> _factory = new();
+    private readonly HttpClient _client;
+
+    public ApiIntegrationTests() => _client = _factory.CreateClient();
+
+    public async ValueTask DisposeAsync()
+    {
+        _client.Dispose();
+        await _factory.DisposeAsync();
+    }
 
     // ── GET /api/rates ────────────────────────────────────────────────────────
 
@@ -118,9 +128,19 @@ public sealed class ApiIntegrationTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task PostOrder_InsufficientBalance_Returns422()
+    {
+        var payload = new { pair = "USD/EUR", side = "Buy", limitPrice = 0.90m, quantity = 99_999m };
+
+        var response = await _client.PostAsJsonAsync("/api/orders", payload);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
     public async Task PostOrder_AppearsInGetOrders()
     {
-        var payload = new { pair = "USD/GBP", side = "Sell", limitPrice = 0.80m, quantity = 200m };
+        var payload = new { pair = "USD/GBP", side = "Buy", limitPrice = 0.75m, quantity = 200m };
 
         await _client.PostAsJsonAsync("/api/orders", payload);
         var response = await _client.GetAsync("/api/orders");
