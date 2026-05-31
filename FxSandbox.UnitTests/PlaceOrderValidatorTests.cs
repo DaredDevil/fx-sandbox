@@ -3,7 +3,7 @@ using FxSandbox.Domain;
 using FxSandbox.Features.Orders;
 using Xunit;
 
-namespace FxSandbox.Tests;
+namespace FxSandbox.UnitTests;
 
 public sealed class PlaceOrderValidatorTests
 {

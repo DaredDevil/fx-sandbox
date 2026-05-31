@@ -4,7 +4,7 @@ using FxSandbox.Features.Orders;
 using FxSandbox.Services;
 using Xunit;
 
-namespace FxSandbox.Tests;
+namespace FxSandbox.UnitTests;
 
 public sealed class TradingEngineTests
 {
@@ -127,6 +127,43 @@ public sealed class TradingEngineTests
         var secondAttempt = engine.TryFillOrder(order, 0.89m);
 
         secondAttempt.Should().BeFalse();
+    }
+
+    // ── Cancel order ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public void CancelOrder_PendingOrder_SetsCancelledStatus()
+    {
+        var engine = CreateEngine();
+        var order = engine.PlaceOrder(new("USD/EUR", OrderSide.Buy, 0.90m, 100m));
+
+        var result = engine.CancelOrder(order.Id);
+
+        result.Should().BeTrue();
+        order.Status.Should().Be(OrderStatus.Cancelled);
+    }
+
+    [Fact]
+    public void CancelOrder_UnknownId_ReturnsFalse()
+    {
+        var engine = CreateEngine();
+
+        var result = engine.CancelOrder(Guid.NewGuid());
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CancelOrder_FilledOrder_ReturnsFalse()
+    {
+        var engine = CreateEngine();
+        var order = engine.PlaceOrder(new("USD/EUR", OrderSide.Buy, 0.90m, 100m));
+        engine.TryFillOrder(order, 0.90m);
+
+        var result = engine.CancelOrder(order.Id);
+
+        result.Should().BeFalse();
+        order.Status.Should().Be(OrderStatus.Filled);
     }
 
     // ── Positions ────────────────────────────────────────────────────────────

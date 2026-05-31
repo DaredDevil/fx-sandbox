@@ -1,11 +1,13 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FxSandbox.Api", "FxSandbox.Api\FxSandbox.Api.csproj", "{972FCA51-3529-4529-9EA2-DB94861781F4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FxSandbox.Tests", "FxSandbox.Tests\FxSandbox.Tests.csproj", "{04B639EF-8589-4B86-A233-9FF5B42BEB29}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FxSandbox.UnitTests", "FxSandbox.UnitTests\FxSandbox.UnitTests.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567891}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FxSandbox.ApiTests", "FxSandbox.ApiTests\FxSandbox.ApiTests.csproj", "{B2C3D4E5-F6A7-8901-BCDE-F12345678902}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,9 +22,13 @@ Global
 		{972FCA51-3529-4529-9EA2-DB94861781F4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{972FCA51-3529-4529-9EA2-DB94861781F4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{972FCA51-3529-4529-9EA2-DB94861781F4}.Release|Any CPU.Build.0 = Release|Any CPU
-		{04B639EF-8589-4B86-A233-9FF5B42BEB29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{04B639EF-8589-4B86-A233-9FF5B42BEB29}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{04B639EF-8589-4B86-A233-9FF5B42BEB29}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{04B639EF-8589-4B86-A233-9FF5B42BEB29}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567891}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567891}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567891}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567891}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2C3D4E5-F6A7-8901-BCDE-F12345678902}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2C3D4E5-F6A7-8901-BCDE-F12345678902}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2C3D4E5-F6A7-8901-BCDE-F12345678902}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2C3D4E5-F6A7-8901-BCDE-F12345678902}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

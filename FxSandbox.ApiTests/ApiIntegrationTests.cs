@@ -2,22 +2,15 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
-using FxSandbox.Domain;
-using FxSandbox.Features.Orders;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
-namespace FxSandbox.Tests;
+namespace FxSandbox.ApiTests;
 
 public sealed class ApiIntegrationTests(WebApplicationFactory<Program> factory)
     : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly HttpClient _client = factory.CreateClient();
-
-    private static readonly JsonSerializerOptions _jsonOpts = new()
-    {
-        PropertyNameCaseInsensitive = true,
-    };
 
     // ── GET /api/rates ────────────────────────────────────────────────────────
 
