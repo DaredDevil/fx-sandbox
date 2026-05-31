@@ -2,7 +2,7 @@ using FxSandbox.Domain;
 
 namespace FxSandbox.Services;
 
-public sealed class OrderMatchingService(TradingEngine engine) : BackgroundService
+public sealed class OrderMatchingService(ITradingEngine engine) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {

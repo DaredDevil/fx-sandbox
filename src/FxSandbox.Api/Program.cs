@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.ConfigureHttpJsonOptions(opts =>
     opts.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-builder.Services.AddSingleton<TradingEngine>();
+builder.Services.AddSingleton<ITradingEngine, TradingEngine>();
 builder.Services.AddHostedService<RateSimulatorService>();
 builder.Services.AddHostedService<OrderMatchingService>();
 
@@ -31,7 +31,7 @@ if (Directory.Exists(Path.Combine(app.Environment.ContentRootPath, "wwwroot")))
 
 // ── Rates ──────────────────────────────────────────────────────────────────
 
-app.MapGet("/api/rates", (TradingEngine engine) =>
+app.MapGet("/api/rates", (ITradingEngine engine) =>
 {
     var rates = engine.GetRates();
     return Results.Ok(rates.Select(kvp => new
@@ -44,10 +44,10 @@ app.MapGet("/api/rates", (TradingEngine engine) =>
 
 // ── Orders ─────────────────────────────────────────────────────────────────
 
-app.MapGet("/api/orders", (TradingEngine engine) =>
+app.MapGet("/api/orders", (ITradingEngine engine) =>
     Results.Ok(engine.GetOrders().OrderByDescending(o => o.CreatedAt)));
 
-app.MapPost("/api/orders", (PlaceOrderRequest request, TradingEngine engine) =>
+app.MapPost("/api/orders", (PlaceOrderRequest request, ITradingEngine engine) =>
 {
     var validation = new PlaceOrderValidator().Validate(request);
     if (!validation.IsValid)
@@ -59,17 +59,17 @@ app.MapPost("/api/orders", (PlaceOrderRequest request, TradingEngine engine) =>
         : Results.UnprocessableEntity(new { error = result.Error });
 });
 
-app.MapDelete("/api/orders/{id:guid}", (Guid id, TradingEngine engine) =>
+app.MapDelete("/api/orders/{id:guid}", (Guid id, ITradingEngine engine) =>
     engine.CancelOrder(id) ? Results.NoContent() : Results.NotFound());
 
 // ── Positions ──────────────────────────────────────────────────────────────
 
-app.MapGet("/api/positions", (TradingEngine engine) =>
+app.MapGet("/api/positions", (ITradingEngine engine) =>
     Results.Ok(engine.GetPositions()));
 
 // ── Account ────────────────────────────────────────────────────────────────
 
-app.MapGet("/api/account", (TradingEngine engine) =>
+app.MapGet("/api/account", (ITradingEngine engine) =>
     Results.Ok(new { balance = engine.GetBalance(), currency = "USD" }));
 
 // SPA fallback: serve index.html for any non-API route so React router works

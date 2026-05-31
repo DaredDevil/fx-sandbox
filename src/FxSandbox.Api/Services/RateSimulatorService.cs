@@ -1,6 +1,6 @@
 namespace FxSandbox.Services;
 
-public sealed class RateSimulatorService(TradingEngine engine) : BackgroundService
+public sealed class RateSimulatorService(ITradingEngine engine) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {

@@ -18,7 +18,7 @@ public sealed class OrderMatchingIntegrationTests
     private static LimitOrder Place(TradingEngine engine, PlaceOrderRequest req)
         => engine.PlaceOrder(req).Order!;
 
-    private static async Task<OrderMatchingService> StartMatchingAsync(TradingEngine engine, CancellationToken ct)
+    private static async Task<OrderMatchingService> StartMatchingAsync(ITradingEngine engine, CancellationToken ct)
     {
         var svc = new OrderMatchingService(engine);
         await svc.StartAsync(ct);
