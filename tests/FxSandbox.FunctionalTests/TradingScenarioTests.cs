@@ -67,7 +67,6 @@ public sealed class TradingScenarioTests(WebApplicationFactory<Program> factory)
     [Fact]
     public async Task Scenario_CancelFilledOrder_Returns404()
     {
-        // Place at exactly the seed rate — the matching service will fill it on next tick
         var ratesResp = await _client.GetAsync("/api/rates");
         var ratesBody = await ratesResp.Content.ReadAsStringAsync();
         using var ratesDoc = JsonDocument.Parse(ratesBody);
@@ -75,15 +74,29 @@ public sealed class TradingScenarioTests(WebApplicationFactory<Program> factory)
             .First(r => r.GetProperty("pair").GetString() == "USD/CHF")
             .GetProperty("value").GetDecimal();
 
-        // Place buy at market rate so it fills immediately
-        var payload = new { pair = "USD/CHF", side = "Buy", limitPrice = marketRate, quantity = 100m };
+        // Place buy 10% above market — fills on the first matching tick
+        // regardless of rate drift (±0.5% per tick from the simulator).
+        var limitPrice = Math.Round(marketRate * 1.1m, 6);
+        var payload = new { pair = "USD/CHF", side = "Buy", limitPrice, quantity = 100m };
         var postResp = await _client.PostAsJsonAsync("/api/orders", payload);
         var created = await postResp.Content.ReadAsStringAsync();
         using var createdDoc = JsonDocument.Parse(created);
         var id = createdDoc.RootElement.GetProperty("id").GetString();
 
-        // Give the matching service one tick to fill it
-        await Task.Delay(700);
+        // Poll until Filled rather than relying on a fixed delay.
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        string status;
+        do
+        {
+            await Task.Delay(100);
+            var ordersResp = await _client.GetAsync("/api/orders");
+            using var ordersDoc = JsonDocument.Parse(await ordersResp.Content.ReadAsStringAsync());
+            status = ordersDoc.RootElement.EnumerateArray()
+                .First(o => o.GetProperty("id").GetString() == id)
+                .GetProperty("status").GetString()!;
+        } while (status != "Filled" && DateTime.UtcNow < deadline);
+
+        status.Should().Be("Filled", "order should have been matched before attempting cancel");
 
         var deleteResp = await _client.DeleteAsync($"/api/orders/{id}");
         deleteResp.StatusCode.Should().Be(HttpStatusCode.NotFound);
