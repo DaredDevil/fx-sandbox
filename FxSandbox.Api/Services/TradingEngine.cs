@@ -55,7 +55,7 @@ public sealed class TradingEngine
 
     public IReadOnlyList<LimitOrder> GetOrders()
     {
-        lock (_lock) { return [.._orders]; }
+        lock (_lock) { return [.. _orders]; }
     }
 
     public bool CancelOrder(Guid id)
