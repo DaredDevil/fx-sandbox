@@ -1,43 +1,26 @@
 name: deploy
-
-on:
+railway on:
   push:
     branches: [main]
-
 permissions:
   contents: read
-
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   test:
     uses: elveedeveloper/agentic/.github/workflows/reusable-ci-dotnet.yml@main
     with:
       dotnet-version: '8.0.x'
-
   deploy:
     needs: test
     runs-on: ubuntu-latest
     environment: production
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Railway CLI
         run: npm install -g @railway/cli@4.66.0
-
-      - name: Check Railway secrets are present
-        run: |
-          test -n "$RAILWAY_TOKEN" || (echo "RAILWAY_TOKEN is missing" && exit 1)
-          test -n "$RAILWAY_SERVICE_ID" || (echo "RAILWAY_SERVICE_ID is missing" && exit 1)
-          echo "Railway secrets are present"
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
-
       - name: Deploy to Railway
         run: railway up --service "$RAILWAY_SERVICE_ID" --environment production --detach
         env:
