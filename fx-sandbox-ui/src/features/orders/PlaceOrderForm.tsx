@@ -37,7 +37,7 @@ export function PlaceOrderForm() {
     mutationFn: api.placeOrder,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['orders'] });
-      reset({ pair: 'USD/EUR', side: 'Buy' });
+      reset();
     },
   });
 

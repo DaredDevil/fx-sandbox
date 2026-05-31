@@ -8,7 +8,7 @@ export function OrderBook() {
   const { data: orders, isError } = useQuery({
     queryKey: ['orders'],
     queryFn: api.getOrders,
-    refetchInterval: 2000,
+    refetchInterval: 1000,
   });
 
   const cancelMutation = useMutation({

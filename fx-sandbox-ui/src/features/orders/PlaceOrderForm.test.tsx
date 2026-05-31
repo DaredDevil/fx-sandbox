@@ -83,6 +83,23 @@ describe('PlaceOrderForm', () => {
     expect(await screen.findByText(/Order placed/i)).toBeInTheDocument();
   });
 
+  it('clears limitPrice and quantity fields after successful order', async () => {
+    const user = userEvent.setup();
+    render(<PlaceOrderForm />, { wrapper });
+
+    const priceInput = screen.getByPlaceholderText(/0\.9200/);
+    const qtyInput = screen.getByPlaceholderText(/1000/);
+
+    await user.type(priceInput, '0.92');
+    await user.type(qtyInput, '500');
+    await user.click(screen.getByRole('button', { name: /PLACE BUY LIMIT/i }));
+
+    await screen.findByText(/Order placed/i);
+
+    expect((priceInput as HTMLInputElement).value).toBe('');
+    expect((qtyInput as HTMLInputElement).value).toBe('');
+  });
+
   it('shows error message when API call fails', async () => {
     vi.mocked(api.placeOrder).mockRejectedValue(new Error('Server error'));
     const user = userEvent.setup();
