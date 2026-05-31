@@ -10,11 +10,21 @@ namespace FxSandbox.FunctionalTests;
 /// <summary>
 /// End-to-end trader scenarios exercised through the live HTTP stack.
 /// Each test represents a complete user journey rather than an isolated endpoint check.
+/// xUnit creates one instance per [Fact], so each test gets its own factory and a
+/// fresh TradingEngine — tests cannot bleed state into each other.
 /// </summary>
-public sealed class TradingScenarioTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class TradingScenarioTests : IAsyncDisposable
 {
-    private readonly HttpClient _client = factory.CreateClient();
+    private readonly WebApplicationFactory<Program> _factory = new();
+    private readonly HttpClient _client;
+
+    public TradingScenarioTests() => _client = _factory.CreateClient();
+
+    public async ValueTask DisposeAsync()
+    {
+        _client.Dispose();
+        await _factory.DisposeAsync();
+    }
 
     // ── Scenario: place a limit order and verify it appears in the book ───────
 
