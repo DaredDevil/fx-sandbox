@@ -5,7 +5,7 @@
 
 - **Project name:** FX Sandbox
 - **Solution:** FxSandbox.sln
-- **Run API:** `dotnet run --project FxSandbox.Api`
+- **Run API:** `dotnet run --project src/FxSandbox.Api`
 - **Run frontend:** `cd fx-sandbox-ui && npm run dev`
 - **Backend tests:** `dotnet test`
 - **Frontend tests:** `cd fx-sandbox-ui && npm test`

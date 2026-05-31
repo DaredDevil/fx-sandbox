@@ -13,9 +13,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
     <PackageReference Include="FluentAssertions" Version="6.12.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.8" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\FxSandbox.Api\FxSandbox.Api.csproj" />
+    <ProjectReference Include="..\..\src\FxSandbox.Api\FxSandbox.Api.csproj" />
   </ItemGroup>
 </Project>

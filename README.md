@@ -8,17 +8,24 @@ A full-stack foreign-exchange paper trading simulator. Traders can experiment wi
 
 ```
 fx-sandbox/
-├── FxSandbox.Api/          # ASP.NET 8 minimal-API backend (in-memory, no DB)
-│   ├── Domain/             # OrderStatus, OrderSide, LimitOrder, Position value objects
-│   ├── Features/Orders/    # PlaceOrderRequest + FluentValidation validator
-│   └── Services/
-│       ├── TradingEngine          # Thread-safe in-memory state (orders, positions, rates, balance)
-│       ├── RateSimulatorService   # BackgroundService: random-walk rate ticks every 500 ms
-│       └── OrderMatchingService   # BackgroundService: fills pending orders every 500 ms
-├── FxSandbox.Tests/        # xUnit test suite
-│   ├── TradingEngineTests.cs      # Unit tests — engine logic, P&L, fill rules
-│   ├── PlaceOrderValidatorTests.cs # Unit tests — FluentValidation rules
-│   └── ApiIntegrationTests.cs     # Integration tests — HTTP endpoints via WebApplicationFactory
+├── src/
+│   └── FxSandbox.Api/          # ASP.NET 8 minimal-API backend (in-memory, no DB)
+│       ├── Domain/             # OrderStatus, OrderSide, LimitOrder, Position value objects
+│       ├── Features/Orders/    # PlaceOrderRequest + FluentValidation validator
+│       └── Services/
+│           ├── TradingEngine          # Thread-safe in-memory state (orders, positions, rates, balance)
+│           ├── RateSimulatorService   # BackgroundService: random-walk rate ticks every 500 ms
+│           └── OrderMatchingService   # BackgroundService: fills pending orders every 500 ms
+├── tests/
+│   ├── FxSandbox.UnitTests/        # Pure domain/service unit tests — no HTTP, no I/O
+│   │   ├── TradingEngineTests.cs   # Engine logic, fill rules, cancel, P&L, balance
+│   │   └── PlaceOrderValidatorTests.cs # FluentValidation rules
+│   ├── FxSandbox.IntegrationTests/ # Service-wiring tests — background services + engine
+│   │   └── OrderMatchingIntegrationTests.cs
+│   ├── FxSandbox.FunctionalTests/  # End-to-end trader scenarios via WebApplicationFactory
+│   │   └── TradingScenarioTests.cs
+│   └── FxSandbox.ApiTests/         # HTTP contract tests — status codes, JSON shape, validation
+│       └── ApiIntegrationTests.cs
 ├── fx-sandbox-ui/          # React 18 + Vite + TailwindCSS frontend
 │   └── src/
 │       ├── api/            # Typed fetch client + TypeScript interfaces
@@ -94,7 +101,7 @@ Validation rules: `pair` must be one of the three supported pairs; `limitPrice` 
 ### Backend
 
 ```bash
-dotnet run --project FxSandbox.Api
+dotnet run --project src/FxSandbox.Api
 # listens on http://localhost:5000
 ```
 

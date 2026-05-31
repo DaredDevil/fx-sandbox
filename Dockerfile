@@ -10,11 +10,10 @@ RUN npm run build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS api-build
 WORKDIR /app
 COPY FxSandbox.sln ./
-COPY FxSandbox.Api/FxSandbox.Api.csproj FxSandbox.Api/
-COPY FxSandbox.Tests/FxSandbox.Tests.csproj FxSandbox.Tests/
-RUN dotnet restore
-COPY FxSandbox.Api/ FxSandbox.Api/
-RUN dotnet publish FxSandbox.Api -c Release -o /publish
+COPY src/FxSandbox.Api/FxSandbox.Api.csproj src/FxSandbox.Api/
+RUN dotnet restore src/FxSandbox.Api/FxSandbox.Api.csproj
+COPY src/FxSandbox.Api/ src/FxSandbox.Api/
+RUN dotnet publish src/FxSandbox.Api -c Release -o /publish
 
 # Stage 3: runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
