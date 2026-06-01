@@ -9,9 +9,9 @@ public sealed class LocalLockProvider : ILockProvider
 {
     private readonly ReaderWriterLockSlim _rwLock = new(LockRecursionPolicy.NoRecursion);
 
-    public void EnterReadLock()  => _rwLock.EnterReadLock();
-    public void ExitReadLock()   => _rwLock.ExitReadLock();
+    public void EnterReadLock() => _rwLock.EnterReadLock();
+    public void ExitReadLock() => _rwLock.ExitReadLock();
     public void EnterWriteLock() => _rwLock.EnterWriteLock();
-    public void ExitWriteLock()  => _rwLock.ExitWriteLock();
-    public void Dispose()        => _rwLock.Dispose();
+    public void ExitWriteLock() => _rwLock.ExitWriteLock();
+    public void Dispose() => _rwLock.Dispose();
 }
