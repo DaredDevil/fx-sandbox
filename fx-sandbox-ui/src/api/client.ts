@@ -35,4 +35,5 @@ export const api = {
   getAccount: () => get<Account>('/api/account'),
   placeOrder: (payload: PlaceOrderPayload) => post<LimitOrder>('/api/orders', payload),
   cancelOrder: (id: string) => del(`/api/orders/${id}`),
+  reset: () => post<Account>('/api/reset', {}),
 };

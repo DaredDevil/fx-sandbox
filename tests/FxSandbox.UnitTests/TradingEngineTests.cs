@@ -460,4 +460,70 @@ public sealed class TradingEngineTests
         var engine = CreateEngine();
         engine.GetBalance().Should().Be(10_000m);
     }
+
+    // ── Reset ─────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Reset_RestoresBalanceToInitialCapital()
+    {
+        var engine = CreateEngine();
+        Place(engine, new("USD/EUR", OrderSide.Buy, 0.90m, 5000m));
+        engine.GetBalance().Should().Be(5_000m);
+
+        engine.Reset();
+
+        engine.GetBalance().Should().Be(10_000m);
+    }
+
+    [Fact]
+    public void Reset_ClearsAllOrders()
+    {
+        var engine = CreateEngine();
+        Place(engine, new("USD/EUR", OrderSide.Buy, 0.90m, 100m));
+        Place(engine, new("USD/GBP", OrderSide.Buy, 0.78m, 100m));
+
+        engine.Reset();
+
+        engine.GetOrders().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Reset_ClearsAllPositions()
+    {
+        var engine = CreateEngine();
+        var order = Place(engine, new("USD/EUR", OrderSide.Buy, 0.90m, 1000m));
+        engine.TryFillOrder(order, 0.90m);
+
+        engine.Reset();
+
+        engine.GetPositions().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Reset_AllowsFullBalanceAfterPreviousBuys()
+    {
+        var engine = CreateEngine();
+        Place(engine, new("USD/EUR", OrderSide.Buy, 0.90m, 9000m)); // only $1,000 left
+        engine.Reset();
+
+        var result = engine.PlaceOrder(new("USD/EUR", OrderSide.Buy, 0.90m, 10_000m));
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Reset_ReleasesSellReservationsFromPreviousState()
+    {
+        var engine = CreateEngine();
+        var buy = Place(engine, new("USD/EUR", OrderSide.Buy, 0.90m, 1000m));
+        engine.TryFillOrder(buy, 0.90m);
+        Place(engine, new("USD/EUR", OrderSide.Sell, 0.95m, 1000m)); // reserves the position
+
+        engine.Reset();
+
+        // After reset, a fresh buy then sell should work cleanly
+        var buy2 = Place(engine, new("USD/EUR", OrderSide.Buy, 0.90m, 500m));
+        engine.TryFillOrder(buy2, 0.90m);
+        var sell = engine.PlaceOrder(new("USD/EUR", OrderSide.Sell, 0.95m, 500m));
+        sell.IsSuccess.Should().BeTrue();
+    }
 }

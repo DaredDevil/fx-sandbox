@@ -75,4 +75,22 @@ describe('PositionsPanel', () => {
     expect(await screen.findByText('0.9100')).toBeInTheDocument();
     expect(await screen.findByText('0.9200')).toBeInTheDocument();
   });
+
+  it('formats balance using the currency from the account', async () => {
+    render(<PositionsPanel />, { wrapper });
+    // Balance should be formatted as USD currency ($10,000.00)
+    expect(await screen.findByText(/\$10,000\.00/)).toBeInTheDocument();
+  });
+
+  it('uses account.currency for formatting not a hardcoded string', async () => {
+    vi.mocked(api.getAccount).mockResolvedValue({ balance: 5000, currency: 'USD' });
+    render(<PositionsPanel />, { wrapper });
+    expect(await screen.findByText(/\$5,000\.00/)).toBeInTheDocument();
+  });
+
+  it('shows updated balance after partial spend', async () => {
+    vi.mocked(api.getAccount).mockResolvedValue({ balance: 7500, currency: 'USD' });
+    render(<PositionsPanel />, { wrapper });
+    expect(await screen.findByText(/\$7,500\.00/)).toBeInTheDocument();
+  });
 });

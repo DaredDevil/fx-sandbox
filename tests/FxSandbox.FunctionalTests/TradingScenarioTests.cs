@@ -153,6 +153,31 @@ public sealed class TradingScenarioTests : IAsyncDisposable
         resp.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
+    // ── Scenario: reset clears all state and restores starting capital ────────
+
+    [Fact]
+    public async Task Scenario_Reset_RestoresBalanceAndClearsOrders()
+    {
+        // Place a couple of buy orders so balance and order list are non-empty
+        await _client.PostAsJsonAsync("/api/orders",
+            new { pair = "USD/EUR", side = "Buy", limitPrice = 0.90m, quantity = 2000m });
+        await _client.PostAsJsonAsync("/api/orders",
+            new { pair = "USD/GBP", side = "Buy", limitPrice = 0.78m, quantity = 1000m });
+
+        var resetResp = await _client.PostAsJsonAsync("/api/reset", new { });
+        resetResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var accountBody = await resetResp.Content.ReadAsStringAsync();
+        using var accountDoc = JsonDocument.Parse(accountBody);
+        accountDoc.RootElement.GetProperty("balance").GetDecimal().Should().Be(10_000m);
+        accountDoc.RootElement.GetProperty("currency").GetString().Should().Be("USD");
+
+        var ordersResp = await _client.GetAsync("/api/orders");
+        var ordersBody = await ordersResp.Content.ReadAsStringAsync();
+        using var ordersDoc = JsonDocument.Parse(ordersBody);
+        ordersDoc.RootElement.GetArrayLength().Should().Be(0);
+    }
+
     // ── Scenario: rejected order with bad pair returns validation error ────────
 
     [Fact]

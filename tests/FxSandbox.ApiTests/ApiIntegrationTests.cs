@@ -213,4 +213,70 @@ public sealed class ApiIntegrationTests : IAsyncDisposable
         using var doc = JsonDocument.Parse(body);
         doc.RootElement.ValueKind.Should().Be(JsonValueKind.Array);
     }
+
+    // ── Currency type ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetAccount_CurrencyIsAlwaysUsd()
+    {
+        var response = await _client.GetAsync("/api/account");
+        var body = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+        doc.RootElement.GetProperty("currency").GetString().Should().Be("USD");
+    }
+
+    [Fact]
+    public async Task GetAccount_BalanceIsNumeric()
+    {
+        var response = await _client.GetAsync("/api/account");
+        var body = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+        var balance = doc.RootElement.GetProperty("balance");
+        balance.ValueKind.Should().BeOneOf(JsonValueKind.Number);
+        balance.GetDecimal().Should().BeGreaterThanOrEqualTo(0m);
+    }
+
+    // ── POST /api/reset ───────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Reset_Returns200WithRestoredBalance()
+    {
+        // Spend some balance first
+        await _client.PostAsJsonAsync("/api/orders",
+            new { pair = "USD/EUR", side = "Buy", limitPrice = 0.90m, quantity = 3000m });
+
+        var resetResp = await _client.PostAsJsonAsync("/api/reset", new { });
+
+        resetResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await resetResp.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+        doc.RootElement.GetProperty("balance").GetDecimal().Should().Be(10_000m);
+        doc.RootElement.GetProperty("currency").GetString().Should().Be("USD");
+    }
+
+    [Fact]
+    public async Task Reset_ClearsOrders()
+    {
+        await _client.PostAsJsonAsync("/api/orders",
+            new { pair = "USD/EUR", side = "Buy", limitPrice = 0.90m, quantity = 100m });
+
+        await _client.PostAsJsonAsync("/api/reset", new { });
+
+        var ordersResp = await _client.GetAsync("/api/orders");
+        var body = await ordersResp.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+        doc.RootElement.GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Reset_BalanceIsUsdAfterReset()
+    {
+        await _client.PostAsJsonAsync("/api/reset", new { });
+
+        var response = await _client.GetAsync("/api/account");
+        var body = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+        doc.RootElement.GetProperty("currency").GetString().Should().Be("USD");
+        doc.RootElement.GetProperty("balance").GetDecimal().Should().Be(10_000m);
+    }
 }

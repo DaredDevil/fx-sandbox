@@ -19,6 +19,7 @@ public interface ITradingEngine
     bool TryFillOrder(LimitOrder order, decimal fillRate);
     IReadOnlyList<PositionDto> GetPositions();
     decimal GetBalance();
+    void Reset();
 }
 
 // ── Implementation ──────────────────────────────────────────────────────────
@@ -234,6 +235,20 @@ public sealed class TradingEngine(ILockProvider lockProvider, ILogger<TradingEng
         _lock.EnterReadLock();
         try { return _balance; }
         finally { _lock.ExitReadLock(); }
+    }
+
+    public void Reset()
+    {
+        _lock.EnterWriteLock();
+        try
+        {
+            _orders.Clear();
+            _positions.Clear();
+            _pendingSellQty.Clear();
+            _balance = 10_000m;
+            _logger.LogInformation("Trading state reset to initial values");
+        }
+        finally { _lock.ExitWriteLock(); }
     }
 
     public void Dispose() => _lock.Dispose();
