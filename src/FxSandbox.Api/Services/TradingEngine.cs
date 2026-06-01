@@ -1,12 +1,12 @@
 using FxSandbox.Domain;
 using FxSandbox.Features.Orders;
+using FxSandbox.Services.Locking;
 
 namespace FxSandbox.Services;
 
 // ── Interface (Dependency Inversion / Open-Closed) ─────────────────────────
-// Consumers depend on the abstraction; the concrete class can be swapped or
-// mocked without touching callers. Adding a new engine variant requires only
-// a new implementation, not edits to existing code.
+// Consumers depend on the abstraction. Swapping the engine (e.g. Redis-backed
+// for multi-pod) requires only a new implementation registered in DI.
 
 public interface ITradingEngine
 {
@@ -22,20 +22,19 @@ public interface ITradingEngine
 }
 
 // ── Implementation ──────────────────────────────────────────────────────────
-// Thread-safety strategy: ReaderWriterLockSlim
+// Thread-safety strategy: ILockProvider (defaults to ReaderWriterLockSlim).
 //
-//   Read lock  → multiple threads may hold it concurrently (all GET paths).
-//   Write lock → one thread at a time, exclusive (mutations + check-and-mutate).
+//   Read lock  → concurrent; all GET paths acquire this.
+//   Write lock → exclusive; all mutations + check-and-mutate acquire this.
 //
-// Why not a plain lock()?  A mutex serialises every GET request behind every
-// other request.  With 100 k concurrent users, reads dominate — RWLockSlim
-// lets them proceed in parallel.  Writes (order placement, fill, cancel) are
-// infrequent by comparison and still fully serialised, so the balance /
-// reservation invariants that prevent overdraft remain atomic.
+// Switching to a Redis-backed lock for multi-pod requires only registering a
+// different ILockProvider in DI — no changes here.
 
-public sealed class TradingEngine : ITradingEngine, IDisposable
+public sealed class TradingEngine(ILockProvider lockProvider, ILogger<TradingEngine> logger)
+    : ITradingEngine, IDisposable
 {
-    private readonly ReaderWriterLockSlim _rwLock = new(LockRecursionPolicy.NoRecursion);
+    private readonly ILockProvider _lock = lockProvider;
+    private readonly ILogger<TradingEngine> _logger = logger;
 
     private readonly Dictionary<string, decimal> _rates = new()
     {
@@ -56,39 +55,43 @@ public sealed class TradingEngine : ITradingEngine, IDisposable
 
     public void UpdateRate(string pair, decimal newRate)
     {
-        _rwLock.EnterWriteLock();
+        _lock.EnterWriteLock();
         try { _rates[pair] = newRate; }
-        finally { _rwLock.ExitWriteLock(); }
+        finally { _lock.ExitWriteLock(); }
     }
 
     public decimal GetRate(string pair)
     {
-        _rwLock.EnterReadLock();
+        _lock.EnterReadLock();
         try { return _rates[pair]; }
-        finally { _rwLock.ExitReadLock(); }
+        finally { _lock.ExitReadLock(); }
     }
 
     public IReadOnlyDictionary<string, decimal> GetRates()
     {
-        _rwLock.EnterReadLock();
+        _lock.EnterReadLock();
         try { return new Dictionary<string, decimal>(_rates); }
-        finally { _rwLock.ExitReadLock(); }
+        finally { _lock.ExitReadLock(); }
     }
 
     // ── Orders ─────────────────────────────────────────────────────────────
 
     public PlaceOrderResult PlaceOrder(PlaceOrderRequest req)
     {
-        _rwLock.EnterWriteLock();
+        _lock.EnterWriteLock();
         try
         {
-            // Check-and-reserve are atomic within the write lock: concurrent
-            // callers cannot race past zero on either constraint.
+            // The entire check-and-reserve is atomic inside the write lock.
+            // No two threads can race past either constraint.
             if (req.Side == OrderSide.Buy)
             {
                 if (_balance < req.Quantity)
+                {
+                    _logger.LogWarning(
+                        "Order rejected — insufficient balance. Required: {Required}, Available: {Available}",
+                        req.Quantity, _balance);
                     return PlaceOrderResult.Fail("Insufficient balance");
-
+                }
                 _balance -= req.Quantity;
             }
             else
@@ -98,8 +101,12 @@ public sealed class TradingEngine : ITradingEngine, IDisposable
                 var available = buyQty - reserved;
 
                 if (available < req.Quantity)
+                {
+                    _logger.LogWarning(
+                        "Order rejected — insufficient position. Pair: {Pair}, Required: {Required}, Available: {Available}",
+                        req.Pair, req.Quantity, available);
                     return PlaceOrderResult.Fail("Insufficient position to sell");
-
+                }
                 _pendingSellQty[req.Pair] = reserved + req.Quantity;
             }
 
@@ -111,21 +118,26 @@ public sealed class TradingEngine : ITradingEngine, IDisposable
                 Quantity = req.Quantity,
             };
             _orders.Add(order);
+
+            _logger.LogInformation(
+                "Order placed. Id: {Id}, Pair: {Pair}, Side: {Side}, LimitPrice: {Price}, Quantity: {Qty}",
+                order.Id, order.Pair, order.Side, order.LimitPrice, order.Quantity);
+
             return PlaceOrderResult.Success(order);
         }
-        finally { _rwLock.ExitWriteLock(); }
+        finally { _lock.ExitWriteLock(); }
     }
 
     public IReadOnlyList<LimitOrder> GetOrders()
     {
-        _rwLock.EnterReadLock();
+        _lock.EnterReadLock();
         try { return [.. _orders]; }
-        finally { _rwLock.ExitReadLock(); }
+        finally { _lock.ExitReadLock(); }
     }
 
     public bool CancelOrder(Guid id)
     {
-        _rwLock.EnterWriteLock();
+        _lock.EnterWriteLock();
         try
         {
             var order = _orders.FirstOrDefault(o => o.Id == id);
@@ -139,16 +151,17 @@ public sealed class TradingEngine : ITradingEngine, IDisposable
                 _pendingSellQty[order.Pair] = Math.Max(0m,
                     _pendingSellQty.GetValueOrDefault(order.Pair) - order.Quantity);
 
+            _logger.LogInformation("Order cancelled. Id: {Id}", id);
             return true;
         }
-        finally { _rwLock.ExitWriteLock(); }
+        finally { _lock.ExitWriteLock(); }
     }
 
     // ── Order matching ─────────────────────────────────────────────────────
 
     public bool TryFillOrder(LimitOrder order, decimal fillRate)
     {
-        _rwLock.EnterWriteLock();
+        _lock.EnterWriteLock();
         try
         {
             if (order.Status != OrderStatus.Pending) return false;
@@ -162,7 +175,7 @@ public sealed class TradingEngine : ITradingEngine, IDisposable
                     _pendingSellQty.GetValueOrDefault(order.Pair) - order.Quantity);
                 _balance += order.Quantity;
             }
-            // BUY: funds were reserved at placement — no further balance change.
+            // BUY: funds reserved at placement — no further balance change.
 
             var key = $"{order.Pair}:{order.Side}";
             if (_positions.TryGetValue(key, out var existing))
@@ -183,16 +196,20 @@ public sealed class TradingEngine : ITradingEngine, IDisposable
                 };
             }
 
+            _logger.LogInformation(
+                "Order filled. Id: {Id}, Pair: {Pair}, Side: {Side}, FillRate: {Rate}",
+                order.Id, order.Pair, order.Side, fillRate);
+
             return true;
         }
-        finally { _rwLock.ExitWriteLock(); }
+        finally { _lock.ExitWriteLock(); }
     }
 
     // ── Positions ──────────────────────────────────────────────────────────
 
     public IReadOnlyList<PositionDto> GetPositions()
     {
-        _rwLock.EnterReadLock();
+        _lock.EnterReadLock();
         try
         {
             return _positions.Values.Select(p =>
@@ -207,19 +224,19 @@ public sealed class TradingEngine : ITradingEngine, IDisposable
                     p.AverageEntryPrice, currentRate, Math.Round(pnl, 4));
             }).ToList();
         }
-        finally { _rwLock.ExitReadLock(); }
+        finally { _lock.ExitReadLock(); }
     }
 
     // ── Account ────────────────────────────────────────────────────────────
 
     public decimal GetBalance()
     {
-        _rwLock.EnterReadLock();
+        _lock.EnterReadLock();
         try { return _balance; }
-        finally { _rwLock.ExitReadLock(); }
+        finally { _lock.ExitReadLock(); }
     }
 
-    public void Dispose() => _rwLock.Dispose();
+    public void Dispose() => _lock.Dispose();
 }
 
 public sealed record PlaceOrderResult

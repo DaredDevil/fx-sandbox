@@ -2,13 +2,16 @@ using FluentAssertions;
 using FxSandbox.Domain;
 using FxSandbox.Features.Orders;
 using FxSandbox.Services;
+using FxSandbox.Services.Locking;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FxSandbox.UnitTests;
 
 public sealed class TradingEngineTests
 {
-    private static TradingEngine CreateEngine() => new();
+    private static TradingEngine CreateEngine() =>
+        new(new LocalLockProvider(), NullLogger<TradingEngine>.Instance);
 
     // Helper: place an order and assert it succeeded (for tests focused elsewhere).
     private static LimitOrder Place(TradingEngine engine, PlaceOrderRequest req)

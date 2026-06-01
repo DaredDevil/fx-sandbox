@@ -2,6 +2,8 @@ using FluentAssertions;
 using FxSandbox.Domain;
 using FxSandbox.Features.Orders;
 using FxSandbox.Services;
+using FxSandbox.Services.Locking;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FxSandbox.IntegrationTests;
@@ -20,7 +22,7 @@ public sealed class OrderMatchingIntegrationTests
 
     private static async Task<OrderMatchingService> StartMatchingAsync(ITradingEngine engine, CancellationToken ct)
     {
-        var svc = new OrderMatchingService(engine);
+        var svc = new OrderMatchingService(engine, NullLogger<OrderMatchingService>.Instance);
         await svc.StartAsync(ct);
         return svc;
     }
@@ -28,7 +30,7 @@ public sealed class OrderMatchingIntegrationTests
     [Fact]
     public async Task FillsBuyOrder_WhenRateIsAtOrBelowLimit()
     {
-        var engine = new TradingEngine();
+        var engine = new TradingEngine(new LocalLockProvider(), NullLogger<TradingEngine>.Instance);
         engine.UpdateRate("USD/EUR", 0.9200m);
         var order = Place(engine, new PlaceOrderRequest("USD/EUR", OrderSide.Buy, 0.9200m, 500m));
 
@@ -44,7 +46,7 @@ public sealed class OrderMatchingIntegrationTests
     [Fact]
     public async Task FillsSellOrder_WhenRateIsAtOrAboveLimit()
     {
-        var engine = new TradingEngine();
+        var engine = new TradingEngine(new LocalLockProvider(), NullLogger<TradingEngine>.Instance);
         engine.UpdateRate("USD/GBP", 0.7890m);
 
         // Must have a BUY position before placing a SELL
@@ -65,7 +67,7 @@ public sealed class OrderMatchingIntegrationTests
     [Fact]
     public async Task SkipsCancelledOrder_EvenWhenRateCrossesLimit()
     {
-        var engine = new TradingEngine();
+        var engine = new TradingEngine(new LocalLockProvider(), NullLogger<TradingEngine>.Instance);
         engine.UpdateRate("USD/CHF", 0.8990m);
         var order = Place(engine, new PlaceOrderRequest("USD/CHF", OrderSide.Buy, 0.8990m, 100m));
         engine.CancelOrder(order.Id);
@@ -82,7 +84,7 @@ public sealed class OrderMatchingIntegrationTests
     [Fact]
     public async Task DoesNotFillBuyOrder_WhenRateIsAboveLimit()
     {
-        var engine = new TradingEngine();
+        var engine = new TradingEngine(new LocalLockProvider(), NullLogger<TradingEngine>.Instance);
         engine.UpdateRate("USD/EUR", 0.9500m);
         var order = Place(engine, new PlaceOrderRequest("USD/EUR", OrderSide.Buy, 0.9000m, 100m));
 
@@ -98,7 +100,7 @@ public sealed class OrderMatchingIntegrationTests
     [Fact]
     public void FilledOrder_CreatesPosition_WithCorrectAverageEntry()
     {
-        var engine = new TradingEngine();
+        var engine = new TradingEngine(new LocalLockProvider(), NullLogger<TradingEngine>.Instance);
 
         var o1 = Place(engine, new PlaceOrderRequest("USD/EUR", OrderSide.Buy, 0.9100m, 1000m));
         engine.TryFillOrder(o1, 0.9100m);

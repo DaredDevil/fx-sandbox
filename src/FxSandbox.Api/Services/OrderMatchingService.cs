@@ -2,10 +2,13 @@ using FxSandbox.Domain;
 
 namespace FxSandbox.Services;
 
-public sealed class OrderMatchingService(ITradingEngine engine) : BackgroundService
+public sealed class OrderMatchingService(ITradingEngine engine, ILogger<OrderMatchingService> logger)
+    : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
+        logger.LogInformation("Order matching service started");
+
         while (!ct.IsCancellationRequested)
         {
             await Task.Delay(500, ct);
@@ -20,12 +23,19 @@ public sealed class OrderMatchingService(ITradingEngine engine) : BackgroundServ
                 if (!rates.TryGetValue(order.Pair, out var currentRate)) continue;
 
                 var shouldFill = order.Side == OrderSide.Buy
-                    ? currentRate <= order.LimitPrice   // buy fills when rate drops to limit
-                    : currentRate >= order.LimitPrice;  // sell fills when rate rises to limit
+                    ? currentRate <= order.LimitPrice
+                    : currentRate >= order.LimitPrice;
 
                 if (shouldFill)
-                    engine.TryFillOrder(order, currentRate);
+                {
+                    if (engine.TryFillOrder(order, currentRate))
+                        logger.LogDebug(
+                            "Matched order {Id}: {Side} {Pair} @ {Rate}",
+                            order.Id, order.Side, order.Pair, currentRate);
+                }
             }
         }
+
+        logger.LogInformation("Order matching service stopped");
     }
 }
