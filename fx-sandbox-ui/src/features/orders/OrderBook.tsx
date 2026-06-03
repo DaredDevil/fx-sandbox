@@ -13,7 +13,11 @@ export function OrderBook() {
 
   const cancelMutation = useMutation({
     mutationFn: api.cancelOrder,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['orders'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['account'] });
+      void queryClient.invalidateQueries({ queryKey: ['positions'] });
+    },
   });
 
   return (

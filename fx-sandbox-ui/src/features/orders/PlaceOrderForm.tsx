@@ -37,6 +37,8 @@ export function PlaceOrderForm() {
     mutationFn: api.placeOrder,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['account'] });
+      void queryClient.invalidateQueries({ queryKey: ['positions'] });
       reset();
     },
   });
