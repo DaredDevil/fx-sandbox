@@ -85,7 +85,7 @@ public sealed class TradingScenarioTests : IAsyncDisposable
             .GetProperty("value").GetDecimal();
 
         // Place buy 10% above market — fills on the first matching tick
-        // regardless of rate drift (±0.5% per tick from the simulator).
+        // regardless of rate drift (±0.1% per tick from the simulator).
         var limitPrice = Math.Round(marketRate * 1.1m, 6);
         var payload = new { pair = "USD/CHF", side = "Buy", limitPrice, quantity = 100m };
         var postResp = await _client.PostAsJsonAsync("/api/orders", payload);
